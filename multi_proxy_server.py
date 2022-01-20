@@ -1,4 +1,5 @@
 import socket, time, sys
+from multiprocessing import Process
 
 # define global address and buffer size
 HOST = ""
@@ -42,20 +43,30 @@ def main():
                 # connect proxy_end
                 proxy_end.connect((remote_ip, port))
 
-                # send data
-                send_full_data = conn.recv(BUFFER_SIZE)
-                print(f"Sending recieved data {send_full_data} to google")
-                proxy_end.sendall(send_full_data)
+                # start a Process daemon for handling multiple connections
+                p = Process(target=handle_proxy_server, args=(addr, conn, proxy_end))
+                p.daemon = True
+                p.start()
+                print("Started process ", p)
 
-                # remember to shutdown
-                proxy_end.shutdown(socket.SHUT_WR)
-
-                data = proxy_end.recv(BUFFER_SIZE)
-                print(f"Sending recieved data {data} to client")
-                #send data back
-                conn.send(data)
+                
             
             conn.close()
+
+def handle_proxy_server(addr, conn, proxy_end):
+    # send data
+    send_full_data = conn.recv(BUFFER_SIZE)
+    print(f"Sending recieved data {send_full_data} to google")
+    proxy_end.sendall(send_full_data)
+
+    # remember to shutdown
+    proxy_end.shutdown(socket.SHUT_WR)
+
+    data = proxy_end.recv(BUFFER_SIZE)
+    print(f"Sending recieved data {data} to client")
+    #send data back
+    conn.send(data)
+
 
 if __name__ == "__main__":
     main()
